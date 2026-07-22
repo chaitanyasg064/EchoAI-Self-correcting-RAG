@@ -152,7 +152,7 @@ class ConversationalRAG:
         self.embed_model = FastEmbedEmbeddings(
             model_name=embedding_model,
             batch_size=8,
-            parallel=0,
+            parallel=None,
         )
         self.chat_model = ChatGroq(temperature=0, model_name=model_name, api_key=api_key)
 
