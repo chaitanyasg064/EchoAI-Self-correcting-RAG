@@ -1,0 +1,22 @@
+# Byte-compiled files
+*.pyc
+*.pyo
+__pycache__/
+
+# Virtual environment
+venv/
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# Environment variables
+.env
+
+# Node.js dependencies
+node_modules/
+
+# Build and distribution directories
+dist/
+build/
+

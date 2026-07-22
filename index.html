@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EchoAI · Voice Support Assistant</title>
+<style>
+  :root {
+    --bg: #0b0e12;
+    --bg-panel: #12161c;
+    --bg-elevated: #171c24;
+    --border: #232a35;
+    --text: #e8ecf1;
+    --text-dim: #8792a3;
+    --accent: #35d0ba;      /* echo / soundwave teal */
+    --accent-dim: #1c6f64;
+    --accent-glow: rgba(53, 208, 186, 0.35);
+    --danger: #ef5a6f;
+    --danger-glow: rgba(239, 90, 111, 0.35);
+    --amber: #f2b25c;
+    --radius: 14px;
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: radial-gradient(circle at 50% -10%, #151b23 0%, var(--bg) 55%);
+    color: var(--text);
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 32px 16px 24px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 56px);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .logo-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), #1c8f7c);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 0 18px var(--accent-glow);
+  }
+  .logo-mark svg { width: 18px; height: 18px; }
+
+  header h1 {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    margin: 0;
+  }
+  header p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  /* ---- Chat area ---- */
+  .chat {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scroll-behavior: smooth;
+  }
+
+  .chat::-webkit-scrollbar { width: 8px; }
+  .chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+  .empty-state {
+    margin: auto;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13.5px;
+    max-width: 320px;
+    line-height: 1.5;
+  }
+  .empty-state strong { color: var(--text); display: block; margin-bottom: 6px; font-size: 15px; }
+
+  .msg {
+    max-width: 82%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14.5px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    animation: rise 0.25s ease-out;
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg.user {
+    align-self: flex-end;
+    background: var(--accent-dim);
+    color: #eafffb;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.assistant.clarify {
+    border-color: var(--amber);
+  }
+  .msg-label {
+    display: block;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+  }
+
+  /* ---- Status strip ---- */
+  .status-strip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 20px;
+    margin: 14px 0 6px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text-dim);
+    transition: background 0.2s;
+  }
+  .status-strip.busy .status-dot {
+    background: var(--amber);
+    animation: blink 1s infinite ease-in-out;
+  }
+  .status-strip.recording .status-dot {
+    background: var(--danger);
+    animation: blink 0.9s infinite ease-in-out;
+  }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  /* ---- Control dock ---- */
+  .dock {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    padding: 20px 0 4px;
+  }
+
+  .mic-btn {
+    position: relative;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(160deg, var(--accent), #1c8f7c);
+    box-shadow: 0 0 0 0 var(--accent-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s;
+  }
+  .mic-btn:disabled {
+    background: #262c35;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .mic-btn:not(:disabled):hover { transform: scale(1.04); }
+  .mic-btn:not(:disabled):active { transform: scale(0.97); }
+
+  .mic-btn.listening {
+    background: linear-gradient(160deg, var(--danger), #a83b4c);
+    animation: pulse-ring 1.4s infinite;
+  }
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 var(--danger-glow); }
+    70%  { box-shadow: 0 0 0 18px rgba(239,90,111,0); }
+    100% { box-shadow: 0 0 0 0 rgba(239,90,111,0); }
+  }
+
+  .mic-btn svg { width: 30px; height: 30px; }
+
+  .bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 22px;
+  }
+  .bars span {
+    width: 4px;
+    background: #fff;
+    border-radius: 2px;
+    height: 6px;
+  }
+  .mic-btn.listening .bars span { animation: sound 1s infinite ease-in-out; }
+  .bars span:nth-child(1){animation-delay:0s;}
+  .bars span:nth-child(2){animation-delay:0.15s;}
+  .bars span:nth-child(3){animation-delay:0.3s;}
+  .bars span:nth-child(4){animation-delay:0.45s;}
+  .bars span:nth-child(5){animation-delay:0.6s;}
+  @keyframes sound {
+    0%,100% { height: 6px; }
+    50%     { height: 22px; }
+  }
+
+  .stop-btn {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .stop-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .stop-btn:not(:disabled) {
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+  .stop-btn:not(:disabled):hover { background: rgba(239,90,111,0.08); }
+  .stop-btn svg { width: 16px; height: 16px; }
+
+  .hint {
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--text-dim);
+    margin-top: 10px;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--bg-elevated);
+    border: 1px solid var(--danger);
+    color: #ffd7dc;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    max-width: 90%;
+    text-align: center;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="#06201c" stroke-width="1.6"/>
+          <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="#06201c" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <h1>EchoAI</h1>
+        <p>Self-correcting voice support assistant</p>
+      </div>
+    </header>
+
+    <div id="chat" class="chat">
+      <div class="empty-state" id="emptyState">
+        <strong>Tap the mic to start</strong>
+        Hold nothing — click Start, ask your question, then click Stop when you're done talking.
+      </div>
+    </div>
+
+    <div id="statusStrip" class="status-strip">
+      <span class="status-dot"></span>
+      <span id="statusText">Ready</span>
+    </div>
+
+    <div class="dock">
+      <button id="startBtn" class="mic-btn" title="Start Recording">
+        <svg id="micIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="white" stroke-width="1.8"/>
+          <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <div id="listeningBars" class="bars" style="display:none;">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </button>
+
+      <button id="stopBtn" class="stop-btn" title="Stop Recording" disabled>
+        <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="6" width="12" height="12" rx="2"/>
+        </svg>
+      </button>
+    </div>
+    <div class="hint" id="hintText">Click Start, ask your question, then Stop when finished.</div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const micIcon = document.getElementById('micIcon');
+  const listeningBars = document.getElementById('listeningBars');
+  const chat = document.getElementById('chat');
+  const emptyState = document.getElementById('emptyState');
+  const statusStrip = document.getElementById('statusStrip');
+  const statusText = document.getElementById('statusText');
+  const hintText = document.getElementById('hintText');
+  const toast = document.getElementById('toast');
+
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let isRecording = false;
+  let isProcessing = false; // guards against duplicate/simultaneous requests
+
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3800);
+  }
+
+  function setStatus(text, mode) {
+    statusText.textContent = text;
+    statusStrip.classList.remove('busy', 'recording');
+    if (mode) statusStrip.classList.add(mode);
+  }
+
+  function appendMessage(role, text, isClarification) {
+    emptyState.remove();
+    const bubble = document.createElement('div');
+    bubble.className = 'msg ' + role + (isClarification ? ' clarify' : '');
+    const label = document.createElement('span');
+    label.className = 'msg-label';
+    label.textContent = role === 'user' ? 'You' : (isClarification ? 'EchoAI · needs clarification' : 'EchoAI');
+    bubble.appendChild(label);
+    bubble.appendChild(document.createTextNode(text));
+    chat.appendChild(bubble);
+    chat.scrollTop = chat.scrollHeight;
+    return bubble;
+  }
+
+  function setDockState({ canStart, canStop, listening }) {
+    startBtn.disabled = !canStart;
+    stopBtn.disabled = !canStop;
+    startBtn.classList.toggle('listening', listening);
+    micIcon.style.display = listening ? 'none' : 'block';
+    listeningBars.style.display = listening ? 'flex' : 'none';
+  }
+
+  async function startRecording() {
+    if (isRecording || isProcessing) return;
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      showToast('Microphone access was denied. Please allow microphone permissions and try again.');
+      return;
+    }
+
+    audioChunks = [];
+    try {
+      mediaRecorder = new MediaRecorder(stream);
+    } catch (err) {
+      showToast('Recording is not supported in this browser.');
+      stream.getTracks().forEach(t => t.stop());
+      return;
+    }
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      handleRecordedAudio(audioBlob);
+    };
+
+    // Explicitly does NOT auto-stop on silence — only the Stop button stops it.
+    mediaRecorder.start();
+    isRecording = true;
+    setDockState({ canStart: false, canStop: true, listening: true });
+    setStatus('Listening…', 'recording');
+    hintText.textContent = 'Recording — click Stop when you\'re finished speaking.';
+  }
+
+  function stopRecording() {
+    if (!isRecording || !mediaRecorder) return;
+    isRecording = false;
+    mediaRecorder.stop();
+    setDockState({ canStart: false, canStop: false, listening: false });
+    setStatus('Processing…', 'busy');
+    hintText.textContent = 'Please wait…';
+  }
+
+  async function handleRecordedAudio(audioBlob) {
+    isProcessing = true;
+    try {
+      // 1. Speech-to-Text
+      setStatus('Transcribing…', 'busy');
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+
+      const sttRes = await fetch('/stt', { method: 'POST', body: formData });
+      const sttData = await sttRes.json();
+      if (!sttRes.ok || !sttData.text) {
+        throw new Error(sttData.error || 'Could not transcribe audio.');
+      }
+      const transcript = sttData.text.trim();
+      if (!transcript) {
+        throw new Error('No speech was detected. Please try again.');
+      }
+      appendMessage('user', transcript, false);
+
+      // 2. Self-Correcting RAG
+      setStatus('Thinking…', 'busy');
+      const llmRes = await fetch('/llm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: transcript }),
+      });
+      const llmData = await llmRes.json();
+      if (!llmRes.ok || !llmData.text) {
+        throw new Error(llmData.error || 'The assistant could not generate a response.');
+      }
+      const answer = llmData.text.trim();
+      const isClarification = /\?\s*$/.test(answer) && answer.split(' ').length < 25;
+      appendMessage('assistant', answer, isClarification);
+
+      // 3. Text-to-Speech + automatic playback
+      setStatus('Speaking…', 'busy');
+      const ttsRes = await fetch('/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: answer }),
+      });
+      if (!ttsRes.ok) {
+        throw new Error('Could not generate speech for the response.');
+      }
+      const audioArrayBuffer = await ttsRes.blob();
+      const audioUrl = URL.createObjectURL(audioArrayBuffer);
+      const player = new Audio(audioUrl);
+      await player.play().catch(() => {
+        showToast('Autoplay was blocked by the browser. Tap anywhere to enable audio.');
+      });
+
+      setStatus('Ready', null);
+      hintText.textContent = 'Click Start, ask your question, then Stop when finished.';
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Something went wrong. Please try again.');
+      setStatus('Ready', null);
+      hintText.textContent = 'Click Start, ask your question, then Stop when finished.';
+    } finally {
+      isProcessing = false;
+      setDockState({ canStart: true, canStop: false, listening: false });
+    }
+  }
+
+  startBtn.addEventListener('click', startRecording);
+  stopBtn.addEventListener('click', stopRecording);
+</script>
+</body>
+</html>

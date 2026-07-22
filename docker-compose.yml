@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+
+  echoai:
+
+    build: .
+
+    container_name: echoai
+
+    ports:
+      - "5000:5000"
+
+    env_file:
+      - .env
+
+    volumes:
+      - ./documentation:/app/documentation
+      - ./qdrant_storage:/app/qdrant_storage
+      - ./echoai.db:/app/echoai.db
+
+    restart: unless-stopped
