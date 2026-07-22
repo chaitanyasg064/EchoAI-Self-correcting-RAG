@@ -18,6 +18,7 @@ Pipeline:
        usage regardless of how long a conversation runs.
 """
 
+import gc
 import logging
 import os
 from collections import OrderedDict
@@ -145,7 +146,14 @@ class ConversationalRAG:
 
         # fastembed uses ONNX runtime instead of torch — much lighter footprint,
         # and BAAI/bge-small-en-v1.5 is also 384-dim, matching the Qdrant collection.
-        self.embed_model = FastEmbedEmbeddings(model_name=embedding_model)
+        # Small batch_size + no parallel workers keeps peak memory low during bulk indexing
+        # (default fastembed behavior tries to encode everything in large batches / extra
+        # worker processes, which is what was tipping the 512MB instance over).
+        self.embed_model = FastEmbedEmbeddings(
+            model_name=embedding_model,
+            batch_size=8,
+            parallel=0,
+        )
         self.chat_model = ChatGroq(temperature=0, model_name=model_name, api_key=api_key)
 
         self.qdrant_client, self.collection_name = self._init_qdrant_client()
@@ -272,12 +280,24 @@ class ConversationalRAG:
             return
 
         try:
-            QdrantVectorStore(
+            store = QdrantVectorStore(
                 client=self.qdrant_client,
                 collection_name=self.collection_name,
                 embedding=self.embed_model,
-            ).add_documents(docs)
-            logger.info("Indexed %d chunks into Qdrant collection '%s'.", len(docs), self.collection_name)
+            )
+            index_batch_size = 50
+            for i in range(0, len(docs), index_batch_size):
+                batch = docs[i : i + index_batch_size]
+                store.add_documents(batch)
+                logger.info(
+                    "Indexed batch %d-%d of %d chunks into Qdrant collection '%s'.",
+                    i,
+                    min(i + index_batch_size, len(docs)),
+                    len(docs),
+                    self.collection_name,
+                )
+                gc.collect()
+            logger.info("Finished indexing %d chunks into Qdrant collection '%s'.", len(docs), self.collection_name)
         except Exception:
             logger.exception("Failed to index documents into Qdrant.")
             raise
