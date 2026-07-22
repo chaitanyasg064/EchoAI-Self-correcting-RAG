@@ -1,6 +1,10 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 flask
 flask-cors
 python-dotenv
+
+torch==2.3.1+cpu
 
 numpy==1.26.4
 pandas==2.2.3

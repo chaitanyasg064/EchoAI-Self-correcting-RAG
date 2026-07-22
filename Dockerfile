@@ -20,6 +20,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 ENV PORT=5000
+ENV OMP_NUM_THREADS=1
+ENV TOKENIZERS_PARALLELISM=false
 
 EXPOSE 5000
 
