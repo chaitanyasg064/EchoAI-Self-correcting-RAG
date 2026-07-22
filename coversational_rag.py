@@ -32,8 +32,8 @@ from langchain_core.documents import Document
 from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_groq import ChatGroq
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
@@ -139,11 +139,13 @@ class ConversationalRAG:
         file_paths: List[str],
         api_key: str,
         model_name: str = "llama-3.1-8b-instant",
-        embedding_model: str = "all-MiniLM-L6-v2",
+        embedding_model: str = "BAAI/bge-small-en-v1.5",
     ):
         logger.info("Initializing ConversationalRAG with %d source file(s)", len(file_paths))
 
-        self.embed_model = HuggingFaceEmbeddings(model_name=embedding_model)
+        # fastembed uses ONNX runtime instead of torch — much lighter footprint,
+        # and BAAI/bge-small-en-v1.5 is also 384-dim, matching the Qdrant collection.
+        self.embed_model = FastEmbedEmbeddings(model_name=embedding_model)
         self.chat_model = ChatGroq(temperature=0, model_name=model_name, api_key=api_key)
 
         self.qdrant_client, self.collection_name = self._init_qdrant_client()
