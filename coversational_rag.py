@@ -139,7 +139,7 @@ class ConversationalRAG:
         file_paths: List[str],
         api_key: str,
         model_name: str = "llama-3.1-8b-instant",
-        embedding_model: str = "all-mpnet-base-v2",
+        embedding_model: str = "all-MiniLM-L6-v2",
     ):
         logger.info("Initializing ConversationalRAG with %d source file(s)", len(file_paths))
 
@@ -246,7 +246,7 @@ class ConversationalRAG:
                 return
             logger.info("Collection '%s' exists but is empty; indexing documentation now.", self.collection_name)
         else:
-            vector_size = len(self.embed_model.embed_query("dimension probe"))
+            vector_size = 384
             try:
                 self.qdrant_client.create_collection(
                     collection_name=self.collection_name,
