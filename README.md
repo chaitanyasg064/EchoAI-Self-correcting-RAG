@@ -47,7 +47,7 @@ EchoAI is a voice-first AI assistant designed for enterprise knowledge retrieval
 | Layer | Technology |
 |-------|------------|
 | Backend | Flask |
-| Frontend | HTML, CSS, JavaScript |
+| Frontend | HTML|
 | LLM | Groq Llama |
 | STT | Groq Whisper |
 | TTS | pyttsx3 |
